@@ -1,0 +1,25 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "apps/slack-bot/src/index.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "SLACK_SIGNING_SECRET": "@slack-signing-secret",
+    "SLACK_BOT_TOKEN": "@slack-bot-token",
+    "SLACK_APP_TOKEN": "@slack-app-token",
+    "NIM_API_KEY": "@nim-api-key",
+    "GROQ_API_KEY": "@groq-api-key",
+    "SUPABASE_URL": "@supabase-url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
+    "UPSTASH_REDIS_REST_URL": "@upstash-redis-url",
+    "UPSTASH_REDIS_REST_TOKEN": "@upstash-redis-token",
+    "GITHUB_TOKEN": "@github-token",
+    "GITHUB_WEBHOOK_SECRET": "@github-webhook-secret"
+  }
+}
