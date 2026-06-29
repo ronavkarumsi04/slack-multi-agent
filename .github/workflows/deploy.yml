@@ -1,0 +1,27 @@
+name: Deploy Slack Agent Team
+
+on:
+  push:
+    paths:
+      - 'deploy_to_github.txt'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run deploy script
+        run: python3 deploy_to_github.txt
+
+      - name: Commit and push all files
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "feat: Slack Workplace Agent Team Generator v2 - 49 files"
+          git push origin main
