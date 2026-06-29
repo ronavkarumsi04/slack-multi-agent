@@ -1,0 +1,63 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  Minimal NIM-only team — great for getting started quickly
+# ══════════════════════════════════════════════════════════════════════════════
+
+team_name: NIM Starter Team
+team_description: Minimal 3-agent team using NVIDIA NIM exclusively.
+
+shared_channels:
+  - name: general
+    description: General team channel
+    topic: "🤖 AI agent team — type @eng-bot, @ops-bot, or @pm-bot to interact"
+
+coordination_channel: agent-hub
+
+agents:
+
+  - name: eng-bot
+    display_name: "Engineering Bot"
+    emoji: "⚙️"
+    role: engineer
+    provider: nim
+    model: nvidia/llama-3.1-nemotron-70b-instruct
+    channels: [general, agent-hub]
+    tools:
+      - name: github
+        enabled: true
+      - name: web_search
+        enabled: true
+      - name: calculator
+        enabled: true
+    safety:
+      autonomy: review
+    temperature: 0.3
+
+  - name: ops-bot
+    display_name: "Ops Bot"
+    emoji: "🛠️"
+    role: ops
+    provider: nim
+    model: nvidia/llama-3.1-nemotron-70b-instruct
+    channels: [general, agent-hub]
+    tools:
+      - name: web_search
+        enabled: true
+    safety:
+      autonomy: review
+    temperature: 0.2
+
+  - name: pm-bot
+    display_name: "PM Bot"
+    emoji: "📋"
+    role: pm
+    provider: nim
+    model: nv-mistralai/mistral-nemo-12b-instruct
+    channels: [general, agent-hub]
+    tools:
+      - name: web_search
+        enabled: true
+      - name: jira
+        enabled: false   # enable once JIRA_* env vars are set
+    safety:
+      autonomy: review
+    temperature: 0.7

@@ -1,0 +1,282 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  Full Workplace Agent Team — Engineering, Ops, Support, PM
+#  Provider: NVIDIA NIM (Nemotron) + fallback providers
+#
+#  Register with:
+#    curl -X POST http://localhost:8000/api/register \
+#         -H "Content-Type: application/yaml" \
+#         --data-binary @examples/full-workplace-team.yaml
+# ══════════════════════════════════════════════════════════════════════════════
+
+team_name: Acme Engineering Team
+team_description: Full-stack AI agent team for Acme Inc. powered by NVIDIA NIM.
+
+shared_channels:
+  - name: engineering
+    description: Main engineering discussion channel
+    topic: "🔧 Engineering discussions, code reviews, and technical decisions"
+
+  - name: incidents
+    description: Incident response and on-call channel
+    topic: "🚨 Incident response — severity classification, runbooks, post-mortems"
+
+  - name: product
+    description: Product roadmap and sprint planning
+    topic: "📋 Product roadmap, sprints, and stakeholder updates"
+
+  - name: customer-support
+    description: Customer-facing support triage
+    topic: "💬 Customer support, bug reports, and escalations"
+
+  - name: data-insights
+    description: Analytics and business intelligence
+    topic: "📊 Data insights, dashboards, and metric reviews"
+
+  - name: security-alerts
+    description: Security vulnerability and compliance channel
+    topic: "🔒 CVEs, compliance, and security incident response"
+
+coordination_channel: agent-coordination
+
+agents:
+
+  # ── Orchestrator — routes and coordinates all other agents ─────────────────
+  - name: arch-bot
+    display_name: "Arch (Orchestrator)"
+    emoji: "🧠"
+    role: orchestrator
+    description: Master orchestrator that decomposes tasks and delegates to specialist agents.
+    provider: nim
+    model: nvidia/llama-3.1-nemotron-70b-instruct
+    channels:
+      - engineering
+      - incidents
+      - product
+      - agent-coordination
+    tools:
+      - name: slack
+        enabled: true
+      - name: web_search
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 100
+      summarise_after: 40
+      persist_skills: true
+    safety:
+      autonomy: full
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 60
+    temperature: 0.4
+    tags:
+      tier: platinum
+      sla: 5min
+
+  # ── Engineering Bot — code review, debugging, GitHub integration ────────────
+  - name: eng-bot
+    display_name: "Eng (Engineering)"
+    emoji: "⚙️"
+    role: engineer
+    description: Senior software engineer specializing in Python, TypeScript, and cloud architecture.
+    provider: nim
+    model: nvidia/llama-3.1-nemotron-70b-instruct
+    channels:
+      - engineering
+      - incidents
+      - agent-coordination
+    tools:
+      - name: github
+        enabled: true
+      - name: web_search
+        enabled: true
+      - name: calculator
+        enabled: true
+      - name: http
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 80
+      summarise_after: 30
+      persist_skills: true
+    safety:
+      autonomy: review
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 30
+      allowed_channels:
+        - engineering
+        - incidents
+        - agent-coordination
+    temperature: 0.3
+    tags:
+      team: backend
+      expertise: python,typescript,kubernetes
+
+  # ── Ops Bot — infrastructure, deployments, incident response ───────────────
+  - name: ops-bot
+    display_name: "Ops (DevOps/SRE)"
+    emoji: "🛠️"
+    role: ops
+    description: DevOps/SRE engineer focused on Kubernetes, Terraform, CI/CD, and incident response.
+    provider: nim
+    model: nvidia/nemotron-4-340b-instruct
+    channels:
+      - incidents
+      - engineering
+      - agent-coordination
+    tools:
+      - name: github
+        enabled: true
+      - name: web_search
+        enabled: true
+      - name: http
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 60
+      summarise_after: 25
+      persist_skills: true
+    safety:
+      autonomy: review
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 30
+    temperature: 0.2
+    tags:
+      oncall: true
+      pagerduty_escalation: engineering-oncall
+
+  # ── Support Bot — customer support, Jira integration ───────────────────────
+  - name: support-bot
+    display_name: "Support"
+    emoji: "💬"
+    role: support
+    description: Tier-1 and Tier-2 customer support specialist with full Jira integration.
+    provider: nim
+    model: nv-mistralai/mistral-nemo-12b-instruct
+    channels:
+      - customer-support
+      - agent-coordination
+    tools:
+      - name: jira
+        enabled: true
+      - name: web_search
+        enabled: true
+      - name: slack
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 50
+      summarise_after: 20
+      persist_skills: true
+    safety:
+      autonomy: review
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 30
+    temperature: 0.6
+    tags:
+      customer_facing: "true"
+      escalation_path: eng-bot
+
+  # ── PM Bot — roadmap, sprints, stakeholder comms ────────────────────────────
+  - name: pm-bot
+    display_name: "Iris (Product Manager)"
+    emoji: "📋"
+    role: pm
+    description: Product manager owning the roadmap, sprint board, and executive reporting.
+    provider: openai
+    model: gpt-4o
+    channels:
+      - product
+      - engineering
+      - agent-coordination
+    tools:
+      - name: jira
+        enabled: true
+      - name: github
+        enabled: true
+      - name: web_search
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 60
+      summarise_after: 25
+      persist_skills: true
+    safety:
+      autonomy: review
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 20
+    temperature: 0.7
+    tags:
+      owns: roadmap,sprints,okrs
+
+  # ── Data Bot — analytics, SQL, metrics ─────────────────────────────────────
+  - name: data-bot
+    display_name: "Data (Analytics)"
+    emoji: "📊"
+    role: data_analyst
+    description: Data analyst and analytics engineer — SQL, Python, metrics interpretation.
+    provider: nim
+    model: nvidia/hermes-3-llama-3.1-70b
+    channels:
+      - data-insights
+      - product
+      - agent-coordination
+    tools:
+      - name: calculator
+        enabled: true
+      - name: web_search
+        enabled: true
+      - name: http
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 50
+      summarise_after: 20
+      persist_skills: true
+    safety:
+      autonomy: full
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 30
+    temperature: 0.2
+    tags:
+      stack: sql,python,dbt,looker
+
+  # ── Security Bot — CVE triage, code audit, compliance ──────────────────────
+  - name: sec-bot
+    display_name: "Shield (Security)"
+    emoji: "🔒"
+    role: security
+    description: Application security engineer. Monitors CVEs, audits code, manages compliance.
+    provider: anthropic
+    model: claude-3-5-sonnet-20241022
+    channels:
+      - security-alerts
+      - engineering
+      - incidents
+      - agent-coordination
+    tools:
+      - name: github
+        enabled: true
+      - name: web_search
+        enabled: true
+      - name: http
+        enabled: true
+    memory:
+      enabled: true
+      max_context_messages: 60
+      summarise_after: 25
+      persist_skills: true
+    safety:
+      autonomy: review
+      content_filter: true
+      pii_redaction: true
+      rate_limit_per_minute: 20
+    temperature: 0.1
+    tags:
+      certifications: soc2,iso27001
+      severity_levels: critical,high,medium,low

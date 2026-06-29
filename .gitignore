@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+*.egg
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data / persistence
+data/
+*.db
+*.sqlite3
+agent_registry.json
+*.jsonl
+
+# Logs
+logs/
+*.log
+
+# Docker
+.dockerignore
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (keep existing TS code)
+node_modules/
+.next/
+.vercel/

@@ -1,788 +1,616 @@
-# Slack Multi-Agent System — Aurelius & Team
+# 🤖 Slack Workplace Agent Team Generator
 
-A fully free, cloud-hosted multi-agent Slack system with 8 specialized AI agents, shared knowledge base, sandboxed browser automation, GitHub integration, and runtime model switching via NVIDIA NIM.
+> **Production-grade, multi-agent Slack workplace system powered by NVIDIA NIM + Nemotron models.**
+> Register an entire AI-powered team from a single YAML spec — engineering, ops, support, PM, security, and more.
 
-## 🎯 Overview
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
+[![NVIDIA NIM](https://img.shields.io/badge/NVIDIA-NIM-76b900.svg)](https://build.nvidia.com/nim/apis)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
+[![Slack Bolt](https://img.shields.io/badge/Slack-Bolt-4A154B.svg)](https://slack.dev/bolt-python)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-| Agent | Role | Specialty |
-|-------|------|-----------|
-| **Aurelius** | Orchestrator | Coordinates team, summarizes discussions, requests confirmations |
-| **Maya** | Engineering | Code, architecture, debugging, technical decisions |
-| **Ethan** | Research | Web research, synthesis, citations, feasibility |
-| **Lena** | Operations | Planning, task breakdown, timelines, blockers |
-| **Iris** | Communications | Writing, announcements, docs, tone adaptation |
-| **Omar** | Customer Experience | Feedback, onboarding, support, advocacy |
-| **Kai** | Automation | Sandbox browser tasks, scraping, testing, scripts |
-| **Noah** | Personal Assistant | Calendar, reminders, notes, private tasks |
+---
 
-## 🚀 Quick Start (5 Minutes)
+## ✨ What's New in v2.0
 
-### Prerequisites
-- GitHub account
-- Slack workspace (admin access)
-- Vercel account (free)
-- Supabase account (free)
-- Upstash Redis account (free)
-- NVIDIA NIM API key (free tier) — [Get one here](https://build.nvidia.com/)
-- Groq API key (free fallback) — [Get one here](https://console.groq.com/)
+| Feature | Description |
+|---|---|
+| **NVIDIA NIM first-class** | Nemotron-70B, Nemotron-340B, Hermes-3, and all NIM models as primary provider |
+| **One-command registration** | POST a YAML/JSON spec → agents + Slack channels auto-provisioned |
+| **Multi-agent orchestration** | Task routing, delegation, ReAct tool loops, subtask decomposition |
+| **Memory + skills** | Per-thread, per-channel, and long-term skill memory (Hermes-style) |
+| **Plugin tool system** | GitHub, Jira, Google Drive, Web Search, Calculator, HTTP, Slack — all extensible |
+| **Safety toggles** | `autonomy: off|review|full` per agent + PII redaction + prompt injection guard |
+| **Slack App Manifest** | Auto-generate a complete Slack manifest from your team spec |
+| **Web dashboard** | Live agent grid, task board, event log, Prometheus metrics |
+| **Docker stack** | One `docker compose up` for the full system with Redis + Postgres |
 
-### 1. Clone & Install
+---
+
+## 🏗 Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                     Slack Workspace                                 │
+│  #engineering  #incidents  #product  #support  #agent-coordination │
+└────────────────────┬───────────────────────────────────────────────┘
+                     │ Slack Events (Socket Mode / Webhooks)
+                     ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                FastAPI Application  (:8000)                         │
+│                                                                     │
+│  ┌──────────────┐  ┌───────────────┐  ┌─────────────────────────┐ │
+│  │  /api/       │  │  /dashboard   │  │  Slack Bolt             │ │
+│  │  register    │  │  (Web UI)     │  │  event_handler.py       │ │
+│  │  agents      │  │               │  │                         │ │
+│  │  tasks       │  └───────────────┘  └────────────┬────────────┘ │
+│  │  manifest    │                                   │              │
+│  └──────────────┘                                   ▼              │
+│                                        ┌─────────────────────────┐ │
+│                                        │  Orchestrator           │ │
+│                                        │  • Route to agents      │ │
+│                                        │  • Delegate tasks       │ │
+│                                        │  • Decompose subtasks   │ │
+│                                        └──────────┬──────────────┘ │
+└─────────────────────────────────────────────────┬─┘────────────────┘
+                                                   │
+        ┌──────────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  Agent Layer                                                       │
+│                                                                    │
+│  AgentRegistry ──► [arch-bot] [eng-bot] [ops-bot] [support-bot]  │
+│                    [pm-bot]   [data-bot] [sec-bot]                │
+│                                                                    │
+│  Each agent has:                                                   │
+│    Provider (NIM/OpenAI/Anthropic/Groq)                           │
+│    Memory (thread + channel + skills)                              │
+│    Tools (GitHub, Jira, Web, HTTP, Slack…)                        │
+│    Safety (autonomy level + PII redaction)                         │
+└──────────┬──────────────────────┬───────────────────────────────┘
+           │                      │
+           ▼                      ▼
+┌──────────────────┐   ┌────────────────────────────────────────┐
+│  LLM Providers   │   │  Tool Plugins                          │
+│                  │   │                                        │
+│  ★ NVIDIA NIM   │   │  github_plugin    jira_plugin          │
+│    Nemotron-70B  │   │  web_search       calculator_plugin    │
+│    Nemotron-340B │   │  slack_plugin     http_plugin          │
+│    Hermes-3      │   │  gdrive_plugin    [custom...]          │
+│  • OpenAI        │   └────────────────────────────────────────┘
+│  • Anthropic     │
+│  • Groq          │   ┌────────────────────────────────────────┐
+└──────────────────┘   │  Memory (Redis / in-process)          │
+                        │  • Thread context                     │
+                        │  • Channel summaries                  │
+                        │  • Learned skills                     │
+                        └────────────────────────────────────────┘
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Clone and bootstrap
+
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/YOUR_ORG/slack-multi-agent.git
 cd slack-multi-agent
-npm install
+bash scripts/bootstrap.sh
 ```
 
-### 2. Configure Environment
+The bootstrap script:
+- Creates a Python virtual environment and installs dependencies
+- Copies `.env.example` → `.env` (fill in your keys)
+- Starts Redis + Postgres via Docker (if Docker is available)
+
+### 2. Configure API keys
+
 ```bash
-cp .env.example .env
-# Edit .env with all your keys
+# Edit .env with your keys:
+NIM_API_KEY=nvapi-...        # https://build.nvidia.com/nim/apis (free tier!)
+SLACK_BOT_TOKEN=xoxb-...     # https://api.slack.com/apps
+SLACK_APP_TOKEN=xapp-...     # App-Level Tokens → connections:write scope
+SLACK_SIGNING_SECRET=...
 ```
 
-### 3. Set Up Infrastructure
+> **NIM API key** is available for free at [build.nvidia.com/nim/apis](https://build.nvidia.com/nim/apis).
+
+### 3. Create your Slack App
+
 ```bash
-# Create Supabase tables
-npm run setup:supabase
+# Start the app
+python main.py
 
-# Create Redis indexes
-npm run setup:redis
-
-# Generate Slack app manifest
-npm run setup:slack
+# Generate a Slack App Manifest for your team
+curl http://localhost:8000/api/manifest | python -m json.tool > manifest.json
 ```
 
-### 4. Deploy to Vercel
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From a manifest**
+2. Paste the contents of `manifest.json`
+3. Install the app to your workspace
+4. Copy the Bot Token (`xoxb-…`) and App-Level Token (`xapp-…`) into `.env`
+
+### 4. Register your agent team
+
 ```bash
-vercel --prod
-# Add all env vars in Vercel dashboard
+# Register the full workplace team (Eng, Ops, Support, PM, Data, Security)
+curl -X POST http://localhost:8000/api/register \
+     -H "Content-Type: application/yaml" \
+     --data-binary @examples/full-workplace-team.yaml
 ```
 
-### 5. Install Slack App
-- Use the generated manifest URL or manual setup (see Slack App Checklist below)
-- Subscribe to events, add slash commands, install to workspace
+This single command:
+- Registers 7 agents with their roles, providers, and models
+- Auto-creates Slack channels (`#engineering`, `#incidents`, `#product`, etc.)
+- Auto-creates per-agent channels (`#agent-eng-bot`, etc.)
+- Posts welcome messages in each channel
+- Wires all routing so agents respond to messages in their channels
 
-### 6. Create Channels
-Create these channels in Slack and invite the bot:
-```
-#aurelius-orchestrator
-#maya-engineering
-#ethan-research
-#lena-operations
-#iris-communications
-#omar-customer
-#kai-automation
-#noah-personal
-#agent-discussion
-#agent-approvals
-#agent-logs
+### 5. Open the dashboard
+
+```bash
+open http://localhost:8000/dashboard
 ```
 
-### 7. Test It
-In Slack:
+---
+
+## 🐳 Docker Deployment
+
+```bash
+# Full stack (app + Redis + Postgres)
+cd docker
+docker compose up -d
+
+# With observability (Prometheus + Grafana)
+docker compose --profile observability up -d
+
+# View logs
+docker compose logs -f app
 ```
-/model status
-/kb add "Test" "This is a test entry" #test
-/kb search "test"
-/task run "Visit example.com and get title" --domains example.com
-@Aurelius Hello team, let's plan a new feature
+
+The Docker stack includes:
+- **App** on port `8000` with auto-restart
+- **Redis** for conversation memory
+- **Postgres** for task persistence
+- **Prometheus** on `9090` (observability profile)
+- **Grafana** on `3000` (observability profile)
+
+---
+
+## 📋 Agent Registration API
+
+### Full team registration
+
+```bash
+POST /api/register
+Content-Type: application/yaml   # or application/json
+
+team_name: My Startup Team
+agents:
+  - name: eng-bot
+    role: engineer
+    provider: nim
+    model: nvidia/llama-3.1-nemotron-70b-instruct
+    channels: [engineering, general]
+    tools:
+      - name: github
+        enabled: true
+    safety:
+      autonomy: review
 ```
+
+### Single agent registration
+
+```bash
+POST /api/agents
+Content-Type: application/json
+
+{
+  "name": "data-bot",
+  "role": "data_analyst",
+  "provider": "nim",
+  "model": "nvidia/hermes-3-llama-3.1-70b",
+  "channels": ["analytics"],
+  "tools": [{"name": "calculator", "enabled": true}],
+  "safety": {"autonomy": "full"}
+}
+```
+
+### Other endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/agents` | List all agents |
+| `GET` | `/api/agents/{name}` | Get a single agent |
+| `DELETE` | `/api/agents/{name}` | Deactivate an agent |
+| `GET` | `/api/tasks` | List tasks (filter by agent/status) |
+| `PATCH` | `/api/tasks/{id}` | Update a task |
+| `GET` | `/api/stats` | Team statistics |
+| `GET` | `/api/manifest` | Generate Slack App Manifest |
+| `GET` | `/api/providers` | Check which providers are configured |
+| `GET` | `/api/docs` | Swagger UI |
+| `GET` | `/dashboard` | Web dashboard |
+| `GET` | `/dashboard/api/metrics` | Metrics JSON |
+| `GET` | `/dashboard/api/metrics/prometheus` | Prometheus text |
+| `GET` | `/health` | Health check |
+
+---
+
+## 🧠 NVIDIA NIM Models
+
+NIM is the **default and first-class provider**. All models are available at `https://integrate.api.nvidia.com/v1` with your NIM API key.
+
+| Alias | Full Model ID | Best For |
+|---|---|---|
+| `nemotron-70b` | `nvidia/llama-3.1-nemotron-70b-instruct` | General, orchestration, complex reasoning |
+| `nemotron-340b` | `nvidia/nemotron-4-340b-instruct` | Ultra-complex tasks, highest quality |
+| `hermes3-70b` | `nvidia/hermes-3-llama-3.1-70b` | Tool calling, structured output |
+| `hermes3-8b` | `nvidia/hermes-3-llama-3.1-8b` | Fast tool-calling, high throughput |
+| `llama3-405b` | `meta/llama-3.1-405b-instruct` | Flagship open model quality |
+| `mixtral-8x22b` | `mistralai/mixtral-8x22b-instruct-v0.1` | Multi-language, code |
+| `mistral-nemo` | `nv-mistralai/mistral-nemo-12b-instruct` | Fast, efficient, customer-facing |
+
+Use short aliases directly in your YAML spec:
+
+```yaml
+model: nemotron-70b      # → resolved to full NIM model ID automatically
+```
+
+---
+
+## 🏢 Full Workplace Team Example
+
+The `examples/full-workplace-team.yaml` defines a complete 7-agent team:
+
+```
+Acme Engineering Team
+│
+├── 🧠 arch-bot       (Orchestrator) — NIM Nemotron-70B
+│   └── Channels: #engineering, #incidents, #product, #agent-coordination
+│
+├── ⚙️ eng-bot        (Engineer)     — NIM Nemotron-70B
+│   └── Channels: #engineering, #incidents
+│   └── Tools: GitHub, Web Search, Calculator, HTTP
+│
+├── 🛠️ ops-bot        (DevOps/SRE)   — NIM Nemotron-340B
+│   └── Channels: #incidents, #engineering
+│   └── Tools: GitHub, Web Search, HTTP
+│
+├── 💬 support-bot    (Support)      — NIM Mistral-Nemo-12B
+│   └── Channels: #customer-support
+│   └── Tools: Jira, Web Search, Slack
+│
+├── 📋 pm-bot         (PM)           — OpenAI GPT-4o
+│   └── Channels: #product, #engineering
+│   └── Tools: Jira, GitHub, Web Search
+│
+├── 📊 data-bot       (Data Analyst) — NIM Hermes-3-70B
+│   └── Channels: #data-insights, #product
+│   └── Tools: Calculator, Web Search, HTTP
+│
+└── 🔒 sec-bot        (Security)     — Anthropic Claude 3.5
+    └── Channels: #security-alerts, #engineering, #incidents
+    └── Tools: GitHub, Web Search, HTTP
+```
+
+**How it works in Slack:**
+
+```
+You: @eng-bot Can you review the auth changes in PR #247?
+eng-bot: Sure! Looking at PR #247 now...
+  [calls github_list_prs tool]
+  [calls github_get_issue tool]
+  I've reviewed PR #247. Here are my findings:
+  
+  ⚠️ Security concern in auth.py line 142: ...
+  ✅ Good use of parameterized queries
+  📝 Suggest adding rate limiting middleware
+  
+  Tagging @sec-bot for the security concern.
+
+sec-bot: Thanks for the tag! I see a potential JWT validation gap...
+```
+
+---
+
+## 🔒 Safety & Autonomy Levels
+
+Each agent has an independently configurable `autonomy` level:
+
+| Level | Behavior |
+|---|---|
+| `off` | Agent never responds. All messages blocked. Use for paused/deactivated agents. |
+| `review` | Agent drafts a response, but it's queued for human approval before posting. *(Default)* |
+| `full` | Agent posts immediately without human approval. Use only for trusted, well-tested agents. |
+
+### Additional safety features
+
+- **Prompt injection guard** — blocks known jailbreak patterns before LLM call
+- **PII redaction** — SSN, credit cards, emails, phone numbers, secrets redacted from all outputs
+- **Rate limiting** — configurable per-agent messages-per-minute cap
+- **Content length cap** — enforces `max_tokens_per_response` limit
+- **Channel allowlist** — optionally restrict an agent to specific channels only
+
+```yaml
+safety:
+  autonomy: review          # off | review | full
+  content_filter: true      # LLM-based content filtering
+  pii_redaction: true       # redact SSN, CC, email, phone, secrets
+  rate_limit_per_minute: 30
+  max_tokens_per_response: 2048
+  allowed_channels:         # empty = all channels; list = restricted
+    - engineering
+    - incidents
+```
+
+---
+
+## 🔧 Tool Plugins
+
+Agents call external tools in a ReAct loop (up to 8 iterations per message).
+
+### Built-in plugins
+
+| Plugin | Functions | Auth |
+|---|---|---|
+| `github` | `github_create_issue`, `github_list_prs`, `github_get_issue`, `github_search_code` | `GITHUB_TOKEN` |
+| `jira` | `jira_create_issue`, `jira_search_issues`, `jira_update_issue` | `JIRA_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
+| `web_search` | `web_search`, `fetch_url` | None (DuckDuckGo) |
+| `calculator` | `calculate` | None |
+| `slack` | `slack_search_messages`, `slack_post_message`, `slack_get_channel_history` | `SLACK_BOT_TOKEN` |
+| `http` | `http_request` | None |
+
+### Adding a custom plugin
+
+```python
+# tools/plugins/my_plugin.py
+from tools.dispatcher import BasePlugin
+from agents.models import Agent
+
+class Plugin(BasePlugin):
+    name = "my_tool"
+
+    def get_schemas(self) -> list[dict]:
+        return [{
+            "type": "function",
+            "function": {
+                "name": "my_function",
+                "description": "Does something useful",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "input": {"type": "string"}
+                    },
+                    "required": ["input"]
+                }
+            }
+        }]
+
+    async def execute(self, function_name: str, arguments: dict, agent: Agent):
+        if function_name == "my_function":
+            return {"result": f"Processed: {arguments['input']}"}
+```
+
+Then add to `tools/dispatcher.py`:
+```python
+PLUGIN_REGISTRY["my_tool"] = "tools.plugins.my_plugin"
+```
+
+And enable it in your agent spec:
+```yaml
+tools:
+  - name: my_tool
+    enabled: true
+    config:
+      api_url: https://my-api.example.com
+```
+
+---
+
+## 🧠 Memory & Skills
+
+Each agent maintains three levels of memory:
+
+### 1. Thread-level (short-term)
+Full message history for the current Slack thread. Auto-summarised after `summarise_after` messages.
+
+### 2. Channel-level (medium-term)
+Compressed summaries of past conversations in each channel, injected as system context.
+
+### 3. Skill memory (long-term)
+Procedural knowledge extracted from conversations — things the agent "learned" about your codebase, preferences, and workflows. Persisted across restarts (Redis or disk).
+
+```yaml
+memory:
+  enabled: true
+  max_context_messages: 80    # max messages kept in active context window
+  summarise_after: 30         # auto-summarise after this many messages
+  persist_skills: true        # extract and store learned skills
+```
+
+**Example learned skill:**
+> "When creating GitHub issues for frontend bugs, always add labels: ['bug', 'frontend'] and link to the Jira ticket in the description."
+
+---
+
+## 🔌 Multi-Provider Support
+
+| Provider | Key Variable | Default Model |
+|---|---|---|
+| **NVIDIA NIM** ⭐ | `NIM_API_KEY` | `nvidia/llama-3.1-nemotron-70b-instruct` |
+| OpenAI | `OPENAI_API_KEY` | `gpt-4o` |
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-20241022` |
+| Groq | `GROQ_API_KEY` | `llama-3.1-70b-versatile` |
+
+Provider fallback order: NIM → OpenAI → Anthropic → Groq (uses first with a valid key).
+
+Check which providers are active:
+```bash
+curl http://localhost:8000/api/providers
+```
+
+---
+
+## 📊 Observability & Dashboard
+
+### Web Dashboard (`/dashboard`)
+- **Agent grid** — role, provider, autonomy level, message/task counts, active status
+- **Task board** — pending, in-progress, waiting for review, done
+- **Event log** — last 100 events with timestamps and agent attribution
+- **Auto-refreshes** every 15 seconds
+
+### Prometheus metrics (`/dashboard/api/metrics/prometheus`)
+```
+agent_responses_total{agent="eng-bot"} 42
+llm_calls_total{provider="nim"} 156
+tokens_in_total 284920
+tokens_out_total 64830
+task_duration_ms{quantile="0.95"} 3420.5
+safety_blocks_total{agent="eng-bot"} 2
+tool_calls_total{agent="ops-bot",tool="github"} 17
+```
+
+### Structured event log (`logs/events.jsonl`)
+```json
+{"ts":"2026-06-28T12:00:00","event":"agent_response","agent":"eng-bot","channel":"engineering","text_len":412,"tool_calls":2}
+{"ts":"2026-06-28T12:00:01","event":"llm_call","provider":"nim","model":"nvidia/llama-3.1-nemotron-70b-instruct","input_tokens":1240,"output_tokens":387,"latency_ms":1832.4}
+{"ts":"2026-06-28T12:00:01","event":"tool_call","agent":"eng-bot","tool":"github_create_issue","success":true,"duration_ms":340.1}
+```
+
+---
 
 ## 📁 Project Structure
 
 ```
 slack-multi-agent/
-├── apps/
-│   ├── slack-bot/          # Main Bolt app (Vercel serverless)
-│   └── dashboard/          # Next.js admin dashboard
-├── packages/
-│   ├── shared/             # Types, constants, prompts
-│   └── config/             # Validation schemas
-├── scripts/                # Setup scripts
-├── supabase/               # Database migrations
-├── docker/                 # Sandbox Docker image
-└── vercel.json             # Vercel deployment config
+│
+├── main.py                      ← FastAPI app entry point
+├── requirements.txt
+├── .env.example                 ← Copy to .env and fill in keys
+│
+├── config/
+│   └── settings.py              ← All env vars via pydantic-settings
+│
+├── providers/                   ← LLM provider abstraction
+│   ├── base.py                  ← BaseProvider interface
+│   ├── nim_provider.py          ← ★ NVIDIA NIM (first-class)
+│   ├── openai_provider.py
+│   ├── anthropic_provider.py
+│   └── groq_provider.py
+│
+├── agents/                      ← Agent models and runtime
+│   ├── models.py                ← Pydantic models (AgentSpec, Task, etc.)
+│   ├── registry.py              ← Global agent + task store
+│   ├── orchestrator.py          ← Multi-agent routing, delegation, ReAct
+│   └── roles/
+│       └── prompts.py           ← Role-based system prompts
+│
+├── api/routes/
+│   └── register.py              ← REST API endpoints
+│
+├── slack/
+│   ├── provisioner.py           ← Auto-create channels + app manifest
+│   └── event_handler.py         ← Slack Bolt event handlers
+│
+├── memory/
+│   └── manager.py               ← Thread/channel/skill memory
+│
+├── tools/
+│   ├── dispatcher.py            ← Plugin registry + execution
+│   └── plugins/
+│       ├── github_plugin.py
+│       ├── jira_plugin.py
+│       ├── web_search_plugin.py
+│       ├── calculator_plugin.py
+│       ├── slack_plugin.py
+│       └── http_plugin.py
+│
+├── safety/
+│   └── guard.py                 ← Autonomy enforcement, PII, rate limiting
+│
+├── observability/
+│   └── logger.py                ← Structured event log + Prometheus metrics
+│
+├── dashboard/
+│   └── app.py                   ← FastAPI + Jinja2 web dashboard
+│
+├── examples/
+│   ├── full-workplace-team.yaml ← 7-agent full workplace team
+│   └── minimal-nim-team.yaml    ← 3-agent NIM-only starter
+│
+├── scripts/
+│   └── bootstrap.sh             ← One-command setup
+│
+└── docker/
+    ├── Dockerfile
+    ├── docker-compose.yml       ← App + Redis + Postgres + Prometheus + Grafana
+    └── prometheus.yml
 ```
 
-## 🤖 Slack Commands
+---
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/model status` | Show current model | `/model status` |
-| `/model set nim:<model>` | Set NIM model | `/model set nim:meta/llama-3.1-70b-instruct` |
-| `/model set fallback:<model>` | Set fallback model | `/model set fallback:llama-3.1-70b-versatile` |
-| `/model list` | List available models | `/model list` |
-| `/kb add "title" "content" #tags` | Add knowledge entry | `/kb add "API Spec" "REST API v2..." #api #v2` |
-| `/kb search "query" [#tag]` | Search knowledge | `/kb search "authentication" #api` |
-| `/kb list [#tag]` | List recent entries | `/kb list #api` |
-| `/kb delete <id>` | Delete entry | `/kb delete kb_12345` |
-| `/task run "desc" --domains d1,d2 --timeout 60` | Request automation | `/task run "Scrape pricing" --domains pricing.com --timeout 30` |
-| `/task approve <id>` | Approve task | `/task approve task_abc123` |
-| `/task reject <id> "reason"` | Reject task | `/task reject task_abc123 "Not needed"` |
-| `/task list` | List pending tasks | `/task list` |
-| `/task logs <id>` | View task logs | `/task logs task_abc123` |
-| `/task allowlist add|remove <domain>` | Manage domains | `/task allowlist add api.github.com` |
-| `/agent prompt <agent> "new prompt"` | Update agent prompt | `/agent prompt Maya "You are a senior engineer..."` |
-| `/agent status` | Show all agent status | `/agent status` |
-| `/help` | Show all commands | `/help` |
+## 🛠 Slash Commands
 
-## 🏗️ Architecture
+Once the Slack app is installed, use these slash commands:
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Slack     │────▶│  Vercel      │────▶│  NVIDIA NIM │
-│   Events    │     │  (Bolt App)  │     │  (Primary)  │
-└─────────────┘     └──────┬───────┘     └─────────────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-         ┌─────────┐ ┌──────────┐ ┌──────────┐
-         │Supabase │ │ Upstash  │ │  GitHub  │
-         │(KB/DB)  │ │ Redis    │ │  (Sync)  │
-         └─────────┘ └──────────┘ └──────────┘
-              │
-              ▼
-         ┌──────────┐
-         │ Sandbox  │
-         │(Playwright)│
-         └──────────┘
-```
+| Command | Description |
+|---|---|
+| `/agent` | List all registered agents |
+| `/agent eng-bot` | Show eng-bot's status and config |
+| `/agent eng-bot Why is my build failing?` | Ask eng-bot directly |
+| `/tasks` | Show recent tasks across all agents |
+| `/tasks eng-bot` | Show tasks assigned to eng-bot |
+| `/register` | (Admin) Register agents via manifest |
 
-## 🔧 Configuration
+---
 
-### Agent Prompts
-Edit `packages/shared/prompts.ts` or use `/agent prompt <agent> "new prompt"` in Slack.
+## 🔐 Security Considerations
 
-### Model Switching
+1. **Never commit `.env`** — add it to `.gitignore` immediately
+2. **Use `autonomy: review`** for all production agents until you've validated their behavior
+3. **Scope Slack tokens** — the bot token only needs the scopes in the manifest
+4. **Rotate NIM API keys** regularly at build.nvidia.com
+5. **Dashboard auth** — set `DASHBOARD_API_KEY` in production to protect the web UI
+6. **Redis TLS** — use `rediss://` URL in production with TLS-enabled Redis
+
+---
+
+## 🧪 Running Tests
+
 ```bash
-# In Slack
-/model set nim:meta/llama-3.1-8b-instruct    # Faster, smaller
-/model set nim:nvidia/nemotron-3-ultra       # Best reasoning
-/model set fallback:llama-3.1-70b-versatile  # Free fallback
-```
+# Install test dependencies
+pip install pytest pytest-asyncio httpx
 
-### Knowledge Base
-- Stored in Supabase (PostgreSQL + pgvector)
-- Full-text search enabled
-- Tags for categorization
-- Agents can read/write via tools
+# Run all tests
+pytest tests/ -v
 
-### Sandbox (Kai)
-- Playwright in Docker container
-- Domain allowlist enforced
-- Approval required before execution
-- Logs stored in Redis (7-day retention)
-- Max 60s per task (configurable)
-
-## 📊 Monitoring
-
-### Vercel Dashboard
-- Function logs: `vercel logs`
-- Metrics: Function duration, errors, invocations
-
-### Slack Channels
-- `#agent-logs` — All agent activity
-- `#agent-approvals` — Kai task approvals
-- `#agent-discussion` — Inter-agent conversations
-
-### Health Checks
-```bash
-# Check deployment
-curl https://your-app.vercel.app/api/health
-
-# Check Redis
-redis-cli -u $UPSTASH_REDIS_REST_URL ping
-
-# Check Supabase
-curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" $SUPABASE_URL/rest/v1/
-```
-
-## 🐛 Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| "NIM_API_KEY not set" | Add to Vercel env vars, redeploy |
-| Slack commands not working | Verify signing secret, check Vercel function logs |
-| Agents not responding | Check NIM API quota, try `/model set fallback:...` |
-| Kai tasks failing | Check allowlist, verify domain accessibility |
-| Knowledge base empty | Run `npm run setup:supabase`, check RLS policies |
-| Session lost | Redis TTL expired (30 days), just continue |
-
-## 💰 Free Tier Limits
-
-| Service | Free Limit | Our Usage |
-|---------|------------|-----------|
-| Vercel | 100GB-hours/mo | ~10GB-hours |
-| Supabase | 500MB DB, 1GB bandwidth | ~50MB |
-| Upstash Redis | 10K requests/day | ~2K/day |
-| NVIDIA NIM | 1M tokens/mo | ~200K/mo |
-| Groq | 14K requests/day | Fallback only |
-| GitHub Actions | 2K minutes/mo | ~200/min |
-| Playwright (local) | Unlimited | Local only |
-
-## 🔐 Security
-
-- All secrets in Vercel environment variables (never in code)
-- Slack request verification on every request
-- Rate limiting per user (10 req/min)
-- Kai sandbox: no network by default, allowlist only
-- Supabase RLS policies (team isolation)
-- No persistent browser state between tasks
-
-## 📝 License
-
-MIT — Use freely for any purpose.
-
----
-
-## 2. STEP-BY-STEP IMPLEMENTATION PLAN
-
-### Phase 1: Foundation & Infrastructure
-
-**Step 1 — Create GitHub Repository**
-- **What to do:** Create a new private GitHub repository named `slack-multi-agent` and clone it locally
-- **Where to put it:** GitHub.com → New Repository → Private → Initialize with README
-- **What should happen next:** You have a remote repo ready for code
-- **How to verify:** `git remote -v` shows your repo URL
-- **Common problems and solutions:** If "repository name already exists," add a suffix like `-team`
-
-**Step 2 — Initialize Project Structure**
-- **What to do:** Create all folders and files from the repo skeleton above using your file explorer or terminal
-- **Where to put it:** Root of cloned repository
-- **What should happen next:** All directories exist, ready for code
-- **How to verify:** `find . -type f -name "*.ts" -o -name "*.json" | head -20` shows files
-- **Common problems and solutions:** Missing `turbo.json` — copy from skeleton; permission errors — run `chmod -R 755 .`
-
-**Step 3 — Install Dependencies**
-- **What to do:** Run `npm install` at root to install all workspace dependencies
-- **Where to put it:** Terminal at repository root
-- **What should happen next:** `node_modules` created, all packages linked
-- **How to verify:** `npm list --workspaces` shows all packages without errors
-- **Common problems and solutions:** Peer dependency warnings are normal; if `turbo` not found, run `npm install -g turbo`
-
-**Step 4 — Create Vercel Project**
-- **What to do:** Go to Vercel dashboard → Add New Project → Import your GitHub repo → Framework: Other → Build Command: `npm run build` → Output Directory: (leave blank)
-- **Where to put it:** Vercel.com dashboard
-- **What should happen next:** Project created, ready for environment variables
-- **How to verify:** Vercel shows project with "Ready to deploy" status
-- **Common problems and solutions:** If "No framework detected," create `vercel.json` first (see skeleton)
-
-**Step 5 — Create Supabase Project**
-- **What to do:** Go to Supabase.com → New Project → Choose free tier → Name: `slack-multi-agent` → Save credentials
-- **Where to put it:** Supabase.com dashboard
-- **What should happen next:** Project provisioned (2-3 minutes), you get URL and keys
-- **How to verify:** Project status shows "Active," API settings show URL and anon/service keys
-- **Common problems and solutions:** If "project name taken," add random suffix; save keys immediately — service role key shown once
-
-**Step 6 — Create Upstash Redis Database**
-- **What to do:** Go to Upstash.com → Create Database → Type: Redis → Region: closest to you → Free tier
-- **Where to put it:** Upstash.com dashboard
-- **What should happen next:** Database created, you get REST URL and token
-- **How to verify:** Dashboard shows "Connected" and REST endpoint
-- **Common problems and solutions:** If region unavailable, pick next closest; copy both URL and token
-
-**Step 7 — Get NVIDIA NIM API Key**
-- **What to do:** Go to build.nvidia.com → Sign in → Get API Key → Create new key → Name: `slack-multi-agent` → Copy key
-- **Where to put it:** NVIDIA Build dashboard
-- **What should happen next:** You have a `NIM_API_KEY` starting with `nvapi-`
-- **How to verify:** Key works in curl test (see Step 15)
-- **Common problems and solutions:** If no credits, check NVIDIA free tier eligibility; key must be kept secret
-
-**Step 8 — Get Groq API Key (Fallback)**
-- **What to do:** Go to console.groq.com → API Keys → Create Key → Name: `slack-fallback` → Copy
-- **Where to put it:** Groq console
-- **What should happen next:** You have a `GROQ_API_KEY` starting with `gsk_`
-- **How to verify:** Key works in test request
-- **Common problems and solutions:** Free tier has rate limits; that's fine for fallback
-
----
-
-### Phase 2: Slack App Creation
-
-**Step 9 — Create Slack App from Manifest**
-- **What to do:** Run `npm run setup:slack` to generate manifest, then go to api.slack.com/apps → Create New App → From Manifest → Paste JSON → Select workspace
-- **Where to put it:** Terminal (run script) → Slack API dashboard
-- **What should happen next:** App created with all scopes, events, commands pre-configured
-- **How to verify:** App shows "Installed" in your workspace, OAuth tokens generated
-- **Common problems and solutions:** If manifest invalid, check JSON syntax; if workspace not listed, you need admin rights
-
-**Step 10 — Configure Slack App Settings Manually (If Not Using Manifest)**
-- **What to do:** In Slack App config: OAuth & Permissions → Add scopes (see checklist below) → Event Subscriptions → Enable → Request URL: `https://your-vercel-app.vercel.app/slack/events` → Subscribe to events → Slash Commands → Add all 5 commands → Interactivity → Enable → Request URL same as events
-- **Where to put it:** api.slack.com/apps → Your App
-- **What should happen next:** All URLs verified, green checkmarks
-- **How to verify:** Each section shows "Saved" with green check
-- **Common problems and solutions:** Vercel URL not ready yet — deploy first (Step 18), then update URLs; "URL verification failed" — check Vercel logs for 404
-
-**Step 11 — Install App to Workspace**
-- **What to do:** OAuth & Permissions → Install to Workspace → Allow
-- **Where to put it:** Slack App config
-- **What should happen next:** Bot User OAuth Token (`xoxb-...`) and Signing Secret generated
-- **How to verify:** Tokens appear, "Installed" badge shows
-- **Common problems and solutions:** If "app not approved," ask workspace admin to approve
-
-**Step 12 — Generate App-Level Token**
-- **What to do:** Basic Information → App-Level Tokens → Generate Token → Name: `socket-mode` → Scopes: `connections:write`, `authorizations:read` → Copy token (`xapp-...`)
-- **Where to put it:** Slack App config → Basic Information
-- **What should happen next:** Token generated for Socket Mode (optional but recommended)
-- **How to verify:** Token starts with `xapp-`
-- **Common problems and solutions:** If using HTTP mode (Vercel), you don't strictly need this but it enables real-time features
-
----
-
-### Phase 3: Database & Storage Setup
-
-**Step 13 — Run Supabase Migrations**
-- **What to do:** In Supabase SQL Editor → New Query → Paste contents of `supabase/migrations/001_init_schema.sql` → Run → Repeat for 002 and 003
-- **Where to put it:** Supabase Dashboard → SQL Editor
-- **What should happen next:** Tables created: `knowledge_base`, `task_approvals`, `agent_configs`, `allowlist_domains`
-- **How to verify:** Table Editor shows 4 tables with correct columns
-- **Common problems and solutions:** If "pgvector not available," skip vector column or enable extension; RLS policies in 003 may need adjustment for service role
-
-**Step 14 — Initialize Redis Indexes**
-- **What to do:** Run `npm run setup:redis` — creates Redis keys for config, sessions, allowlist
-- **Where to put it:** Terminal at repo root
-- **What should happen next:** Redis has initial keys: `config:<team>`, `allowlist:<team>`
-- **How to verify:** Upstash dashboard shows keys; `redis-cli` can query them
-- **Common problems and solutions:** If connection fails, check UPSTASH_REDIS_REST_URL and TOKEN in .env
-
----
-
-### Phase 4: Code Implementation
-
-**Step 15 — Add All Source Code**
-- **What to do:** Copy all code files from Section 1 into their exact locations in the repo
-- **Where to put it:** Exact paths from repo skeleton
-- **What should happen next:** TypeScript compiles without errors
-- **How to verify:** `npm run build` succeeds
-- **Common problems and solutions:** Missing imports — check `packages/shared` exports; path aliases — ensure `tsconfig.json` has correct `baseUrl` and `paths`
-
-**Step 16 — Configure Environment Variables in Vercel**
-- **What to do:** Vercel Dashboard → Project → Settings → Environment Variables → Add all from `.env.example` (10 variables) → Apply to Production, Preview, Development
-- **Where to put it:** Vercel project settings
-- **What should happen next:** All vars show in dashboard with correct environments
-- **How to verify:** `vercel env ls` shows all 10 variables
-- **Common problems and solutions:** "Secret not found" — create Vercel secrets first: `vercel secret add nim-api-key "your-key"` then reference `@nim-api-key`
-
-**Step 17 — Deploy to Vercel**
-- **What to do:** `vercel --prod` from terminal OR push to main branch (auto-deploy)
-- **Where to put it:** Terminal or GitHub push
-- **What should happen next:** Deployment succeeds, you get a `https://slack-multi-agent.vercel.app` URL
-- **How to verify:** Visit URL → shows "OK" or health endpoint responds
-- **Common problems and solutions:** Build fails — check Vercel build logs; function timeout — increase `maxDuration` in vercel.json
-
-**Step 18 — Update Slack App URLs**
-- **What to do:** Slack App → Event Subscriptions → Request URL: `https://your-app.vercel.app/slack/events` → Save → Interactivity → Request URL: same → Save
-- **Where to put it:** Slack App config
-- **What should happen next:** Both URLs verify with green checkmarks
-- **How to verify:** Slack shows "Verified" with timestamp
-- **Common problems and solutions:** 404 — check vercel.json routes; 500 — check Vercel function logs for missing env vars
-
----
-
-### Phase 5: Slack Workspace Setup
-
-**Step 19 — Create Required Channels**
-- **What to do:** In Slack, create 11 channels (public or private) from the CHANNELS list, invite the bot user (`@Aurelius`) to each
-- **Where to put it:** Slack workspace
-- **What should happen next:** Bot is member of all channels
-- **How to verify:** `/invite @Aurelius` in each channel works; bot appears in member list
-- **Common problems and solutions:** If bot not found, reinstall app; if private channels, use `/invite @Aurelius` from a member
-
-**Step 20 — Set Channel IDs in Environment (Optional)**
-- **What to do:** Get each channel ID (Right-click → Copy Link → extract ID) → Add to Vercel env vars: `SLACK_ORCHESTRATOR_CHANNEL`, `SLACK_ENGINEERING_CHANNEL`, etc.
-- **Where to put it:** Vercel environment variables
-- **What should happen next:** App can post to specific channels by ID
-- **How to verify:** `/agent status` shows channel connections
-- **Common problems and solutions:** Channel IDs start with `C` (public) or `G` (private); don't confuse with names
-
----
-
-### Phase 6: Testing & Verification
-
-**Step 21 — Test Model Switching**
-- **What to do:** In Slack: `/model status` → `/model list` → `/model set nim:meta/llama-3.1-8b-instruct` → `/model status`
-- **Where to put it:** Any Slack channel with bot
-- **What should happen next:** Model changes confirmed, status shows new model
-- **How to verify:** Response shows updated provider and model
-- **Common problems and solutions:** "Unknown model" — check spelling against NIM_MODELS list; fallback works if NIM fails
-
-**Step 22 — Test Knowledge Base**
-- **What to do:** `/kb add "Test Entry" "This is test content" #test #demo` → `/kb search "test"` → `/kb list #test` → `/kb delete <id>`
-- **Where to put it:** Slack
-- **What should happen next:** Entries added, searched, listed, deleted successfully
-- **How to verify:** Search returns the entry; delete removes it
-- **Common problems and solutions:** "Supabase not configured" — check SUPABASE_URL and SERVICE_ROLE_KEY; RLS blocking — ensure service role bypasses RLS
-
-**Step 23 — Test Kai Sandbox Automation**
-- **What to do:** `/task allowlist add example.com` → `/task run "Get page title" --domains example.com --timeout 30` → `/task approve <id>` → `/task logs <id>`
-- **Where to put it:** Slack
-- **What should happen next:** Task approved, Kai executes, logs show page title
-- **How to verify:** Logs show navigation, title extraction, success
-- **Common problems and solutions:** "Domain not allowed" — run allowlist add first; timeout — increase `--timeout`; Playwright not installed — deploy includes it via Docker
-
-**Step 24 — Test Agent Conversations**
-- **What to do:** In `#agent-discussion`: `@Aurelius Let's plan a blog post about our launch` → Watch agents respond in their channels → Aurelius posts summary in `#agent-approvals` → Click "Approve"
-- **Where to put it:** Slack channels
-- **What should happen next:** Agents discuss, Aurelius summarizes, approval requested, execution on confirm
-- **How to verify:** Messages appear in specialist channels; summary in approvals; buttons work
-- **Common problems and solutions:** Agents silent — check bot is in channels; mentions not working — verify `app_mentions:read` scope
-
-**Step 25 — Test Agent Prompt Updates**
-- **What to do:** `/agent prompt Maya "You are a senior TypeScript engineer who loves testing"` → `@Maya write a test for user auth`
-- **Where to put it:** Slack
-- **What should happen next:** Maya's behavior changes immediately
-- **How to verify:** Response reflects new persona
-- **Common problems and solutions:** Prompt not saved — check Supabase `agent_configs` table; old prompt cached — restart session
-
----
-
-### Phase 7: Dashboard & Polish
-
-**Step 26 — Deploy Dashboard (Optional but Recommended)**
-- **What to do:** `cd apps/dashboard && vercel --prod` → Set same env vars → Access dashboard URL
-- **Where to put it:** Vercel (separate project or same)
-- **What should happen next:** Dashboard shows agent status, KB browser, task monitor
-- **How to verify:** Pages load, data matches Slack
-- **Common problems and solutions:** CORS errors — add dashboard domain to Supabase/Redis allowed origins
-
-**Step 27 — Set Up GitHub Sync (Optional)**
-- **What to do:** GitHub → Settings → Developer Settings → Personal Access Token → Repo scope → Add to Vercel env → Enable webhook in repo → Settings → Webhooks → Payload URL: `https://your-app.vercel.app/api/github/webhook`
-- **Where to put it:** GitHub repo settings
-- **What should happen next:** Agent configs sync to repo on change
-- **How to verify:** Push to repo triggers sync; `/agent status` shows git hash
-- **Common problems and solutions:** Webhook fails — check GITHUB_WEBHOOK_SECRET matches; 404 — verify API route exists
-
----
-
-## 3. SLACK UI SPECIFICATION
-
-### Home Tab (Per User)
-**What the user sees:** When clicking the app in Slack sidebar, a personalized dashboard with:
-- **Header:** "Welcome back, [Name] — Aurelius & Team at your service"
-- **Section 1:** Current model badge (e.g., "🤖 Model: NIM llama-3.1-70b")
-- **Section 2:** Quick actions — buttons for "New Task (Kai)", "Search Knowledge", "Agent Status"
-- **Section 3:** Recent activity — last 5 KB entries, last 3 tasks, last 2 agent discussions
-- **Section 4:** Agent cards — 8 cards showing each agent's status (idle/working), last action, one-click "Talk to [Agent]"
-
-### Modal: Model Selector (`/model set`)
-**Trigger:** User types `/model set` without args or clicks "Change Model" in Home tab
-**Contents:**
-- Title: "Select AI Model"
-- Radio buttons: NIM Models (5 options) | Fallback Models (3 options)
-- Current selection pre-checked
-- "Save" button → calls `/model set` internally
-- Example text: "Choose which brain powers the team. NIM models are higher quality; fallback is free and fast."
-
-### Modal: Knowledge Base Entry (`/kb add`)
-**Trigger:** `/kb add` without args or "Add Entry" button
-**Contents:**
-- Title: "Add to Knowledge Base"
-- Text input: "Title" (required, max 100 chars)
-- Textarea: "Content" (required, max 5000 chars)
-- Multi-select: "Tags" (suggestions from existing tags + free input)
-- "Save" button
-- Example text: "Store decisions, specs, research, or anything the team should remember."
-
-### Modal: Task Approval (Kai)
-**Trigger:** Kai posts in `#agent-approvals` for approval
-**Contents:**
-- Title: "🤖 Automation Task Awaiting Approval"
-- Fields: Task ID, Requested by, Description, Domains, Timeout
-- Warning: "Kai will control a browser. Only approve if you trust the domains."
-- Buttons: "✅ Approve" (primary) | "❌ Reject" (danger) | "🔄 Modify"
-- Example text: "Kai wants to visit pricing.example.com to extract current prices. This takes ~15 seconds."
-
-### Modal: Agent Prompt Editor (`/agent prompt`)
-**Trigger:** `/agent prompt <agent>` without new prompt
-**Contents:**
-- Title: "Edit System Prompt: [Agent Name]"
-- Textarea: Current prompt (pre-filled, 2000 char max)
-- Hint: "Changes take effect immediately. Be specific about role, tone, and constraints."
-- "Save" button
-- Example text: "Maya's current prompt: 'You are Maya, an engineering specialist...'"
-
-### Block Kit: Agent Discussion Summary (Aurelius)
-**Posted in:** `#agent-approvals` after discussion
-**Contents:**
-- Header: "📋 Discussion Summary — [Topic]"
-- Context: "Channel: #maya-engineering | 12 messages | 3 agents"
-- Section: Bullet summary (3-5 points)
-- Divider
-- Actions: "✅ Approve & Execute" | "❌ Reject" | "🔄 Request Changes"
-- Example text: "• Maya: Proposed React + Vercel architecture\n• Ethan: Confirmed feasibility, cited Next.js docs\n• Lena: Estimated 3 days, identified auth as blocker\n• Decision needed: Proceed with auth research first?"
-
----
-
-## 4. SLACK APP CREATION CHECKLIST
-
-### Required OAuth Scopes (Bot Token)
-```
-app_mentions:read
-channels:history
-channels:read
-chat:write
-commands
-groups:history
-groups:read
-im:history
-im:read
-im:write
-mpim:history
-mpim:read
-reactions:read
-reactions:write
-users:read
-users:read.email
-```
-
-### Required Event Subscriptions
-```
-app_mention
-message.channels
-message.groups
-message.im
-reaction_added
-```
-
-### Slash Commands (All point to `https://your-app.vercel.app/slack/events`)
-| Command | Description | Usage Hint |
-|---------|-------------|------------|
-| `/model` | Switch/view LLM model | `status`, `set nim:...`, `list` |
-| `/kb` | Knowledge base CRUD | `add`, `search`, `list`, `delete` |
-| `/task` | Kai sandbox automation | `run`, `approve`, `reject`, `logs`, `allowlist` |
-| `/agent` | Agent management | `prompt`, `status`, `enable`, `disable` |
-| `/help` | Show all commands | (no args) |
-
-### Interactivity & Shortcuts
-- **Interactivity:** ON → Request URL: `https://your-app.vercel.app/slack/events`
-- **Shortcuts:** None required (all via commands/mentions)
-
-### App Manifest (Generated by `npm run setup:slack`)
-```json
-# Slack App Manifest (YAML) - run script to generate
+# Run with coverage
+pytest tests/ --cov=. --cov-report=html
 ```
 
 ---
 
-## 5. HOSTING & DEPLOYMENT CHECKLIST
+## 🤝 Contributing
 
-### Vercel (Primary Host)
-- [ ] Project created and linked to GitHub repo
-- [ ] Framework: Other (custom build)
-- [ ] Build Command: `npm run build`
-- [ ] Install Command: `npm install`
-- [ ] Node.js Version: 20.x
-- [ ] Function Max Duration: 60s (in vercel.json)
-- [ ] Regions: iad1 (US East) or closest
-
-### Environment Variables (Exact Names)
-| Variable | Required | Source |
-|----------|----------|--------|
-| `SLACK_SIGNING_SECRET` | Yes | Slack App → Basic Information |
-| `SLACK_BOT_TOKEN` | Yes | Slack App → OAuth & Permissions |
-| `SLACK_APP_TOKEN` | Optional | Slack App → Basic Information → App-Level Tokens |
-| `NIM_API_KEY` | Yes | build.nvidia.com |
-| `GROQ_API_KEY` | Yes (fallback) | console.groq.com |
-| `SUPABASE_URL` | Yes | Supabase → Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase → Settings → API (service_role) |
-| `UPSTASH_REDIS_REST_URL` | Yes | Upstash → Database → Details |
-| `UPSTASH_REDIS_REST_TOKEN` | Yes | Upstash → Database → Details |
-| `GITHUB_TOKEN` | Optional | GitHub → Settings → Developer Settings → PAT |
-| `GITHUB_WEBHOOK_SECRET` | Optional | Generate random string |
-
-### Deployment Steps
-1. Push to main branch → Auto-deploy
-2. Or `vercel --prod` from CLI
-3. Verify deployment: `https://your-app.vercel.app/api/health` returns `{"status":"ok"}`
-4. Update Slack Event/Interactivity URLs to production URL
-5. Test `/model status` in Slack
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-plugin`
+3. Add your plugin in `tools/plugins/my_plugin.py` (see [Custom Plugins](#adding-a-custom-plugin))
+4. Add tests in `tests/`
+5. Open a pull request
 
 ---
 
-## 6. LLM SELECTION GUIDANCE
+## 📄 License
 
-### Primary: NVIDIA NIM
-- **Where to get key:** https://build.nvidia.com/ → Sign in → API Keys
-- **Free tier:** 1M tokens/month (as of 2024)
-- **Models available:** Llama 3.1 70B/8B, Mixtral 8x7B, Nemotron 3 Ultra, Gemma 2 27B
-- **Env var:** `NIM_API_KEY` (format: `nvapi-...`)
-- **Switch command:** `/model set nim:meta/llama-3.1-70b-instruct`
-
-### Fallback: Groq (Free)
-- **Where to get key:** https://console.groq.com/ → API Keys
-- **Free tier:** 14,400 requests/day, 30K tokens/min
-- **Models:** Llama 3.1 70B Versatile, Mixtral 8x7B, Gemma 2 9B
-- **Env var:** `GROQ_API_KEY` (format: `gsk_...`)
-- **Switch command:** `/model set fallback:llama-3.1-70b-versatile`
-
-### Model Switching in Slack
-```
-/model status                    # Shows current model + provider
-/model list                      # Lists all available models
-/model set nim:meta/llama-3.1-8b-instruct    # Fast, small NIM model
-/model set nim:nvidia/nemotron-3-ultra       # Best reasoning (NIM)
-/model set fallback:llama-3.1-70b-versatile  # Free Groq fallback
-```
-
-### System Prompt Style (Non-Technical Example)
-> "You are Maya, a senior software engineer. You write clean TypeScript, prefer functional patterns, and always add tests. You explain tradeoffs simply. When unsure, you ask clarifying questions. You document decisions in the knowledge base using `/kb add`. You collaborate with Ethan on research and Lena on timelines."
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-## 7. PERSISTENCE & STATE
+## 🙏 Acknowledgements
 
-### Supabase (PostgreSQL) — What Goes Where
-
-| Table | Purpose | Key Columns | Access Pattern |
-|-------|---------|-------------|----------------|
-| `knowledge_base` | Shared team memory | `id`, `team_id`, `title`, `content`, `tags`, `embedding` | Agents read/write via `/kb` commands; vector search for relevance |
-| `task_approvals` | Kai's sandbox requests | `id`, `team_id`, `status`, `domains`, `description` | Kai writes pending; humans approve/reject via buttons/commands |
-| `agent_configs` | Runtime agent prompts | `team_id`, `agent_name`, `system_prompt`, `enabled` | `/agent prompt` updates; agents read on startup |
-| `allowlist_domains` | Kai's network permissions | `team_id`, `domain`, `added_by` | `/task allowlist` manages; executor checks before navigation |
-
-### Upstash Redis — What Goes Where
-
-| Key Pattern | Purpose | TTL | Example |
-|-------------|---------|-----|---------|
-| `config:{teamId}` | Runtime config (current model) | None | `{currentModel: "nim:meta/llama-3.1-70b-instruct"}` |
-| `session:{teamId}:{channelId}` | Conversation history | 30 days | `{messages: [...], createdAt: ...}` |
-| `task:logs:{teamId}:{taskId}` | Kai execution logs | 7 days | `["[timestamp] Navigating...", "[timestamp] Title: ..."]` |
-| `allowlist:{teamId}` | Cached domain allowlist | 1 hour | `["example.com", "api.github.com"]` |
-
-### Verification Steps
-1. **Supabase:** Table Editor → `knowledge_base` → Insert row manually → `/kb list` shows it
-2. **Redis:** Upstash Console → Data Browser → Keys visible after first command
-3. **Config:** `/model status` shows value from Redis
-4. **Sessions:** Mention Aurelius twice → second response references first
-
----
-
-## 8. TESTING & VERIFICATION PLAN
-
-### Manual Slack Tests
-
-| Test | Steps | Expected Result |
-|------|-------|-----------------|
-| **T1: Bot Responds** | `@Aurelius hello` | Aurelius replies in thread |
-| **T2: Model Switch** | `/model set nim:meta/llama-3.1-8b-instruct` → `/model status` | Status shows new model |
-| **T3: Fallback Works** | `/model set fallback:llama-3.1-70b-versatile` → `@Aurelius test` | Response from Groq (faster) |
-| **T4: KB Add/Search** | `/kb add "Test" "Content" #tag` → `/kb search "test"` | Entry found, formatted nicely |
-| **T5: KB Tags** | `/kb list #tag` | Only tagged entries shown |
-| **T6: Kai Allowlist** | `/task allowlist add example.com` → `/task run "Get title" --domains example.com` | Task created, pending approval |
-| **T7: Kai Approval** | In `#agent-approvals` click "Approve" → `/task logs <id>` | Logs show browser navigation, title extracted |
-| **T8: Agent Delegation** | `@Aurelius Maya, write a hello world function` | Message appears in `#maya-engineering`, Maya responds |
-| **T9: Discussion Summary** | Agents discuss in channel → wait for Aurelius summary in `#agent-approvals` | Summary posted with 3 buttons |
-| **T10: Approval Flow** | Click "Approve" on summary → Aurelius confirms execution | "Proceeding with approved plan" |
-| **T11: Prompt Update** | `/agent prompt Noah "You speak like a pirate"` → `@Noah hello` | Noah responds in pirate speak |
-| **T12: Rate Limit** | Send 15 rapid commands | Responses slow down, "Too many requests" after limit |
-
-### Automated Checks (CI)
-- `npm run build` — TypeScript compiles
-- `npm run test` — Unit tests pass
-- `npm run lint` — No ESLint errors
-
----
-
-## 9. MONITORING & TROUBLESHOOTING
-
-### Common Problems & Fixes
-
-| Symptom | Likely Cause | Fix |
-|---------|--------------|-----|
-| "Slack request verification failed" | Wrong `SLACK_SIGNING_SECRET` | Copy exactly from Slack App → Basic Information |
-| "NIM_API_KEY not set" | Missing in Vercel env | Add to Vercel → Settings → Environment Variables → Redeploy |
-| "Function timeout" | Task > 60s | Increase `maxDuration` in vercel.json or reduce task timeout |
-| "Domain not allowed" | Kai allowlist missing domain | `/task allowlist add <domain>` |
-| "Supabase connection failed" | Wrong URL/key or RLS | Use service_role key; check RLS policies allow service role |
-| "Redis connection failed" | Wrong Upstash credentials | Copy REST URL and TOKEN exactly (no extra spaces) |
-| "Agents not in channels" | Bot not invited | `/invite @Aurelius` in each channel |
-| "Commands not recognized" | Slash commands not registered | Check Slack App → Slash Commands → all 5 present |
-| "Model switch not working" | Redis not saving | Check Upstash dashboard for `config:{teamId}` key |
-| "Dashboard shows no data" | CORS or wrong env | Add dashboard URL to Supabase/Redis allowed origins |
-
-### Monitoring Setup
-- **Vercel:** Functions → Logs → Filter by "error"
-- **Slack:** `#agent-logs` channel for all agent activity
-- **Supabase:** Dashboard → Logs → Database errors
-- **Upstash:** Dashboard → Metrics → Request count, latency
-
----
-
-## 10. EIGHT AGENT SYSTEM PROMPTS
-
-*All prompts are in `packages/shared/prompts.ts` and editable via `/agent prompt <agent> "new prompt"`*
-
-1. **Aurelius (Orchestrator):** You are Aurelius, the orchestrator of a multi-agent team. Your job is to coordinate Maya (engineering), Ethan (research), Lena (operations), Iris (communications), Omar (customer experience), Kai (automation), and Noah (personal assistant). You read and write to a shared knowledge base. When agents discuss in channels, you summarize their debates, identify consensus or conflicts, and present clear options to the human for confirmation before any major action (publishing, deploying, sending external communications, spending budget). You speak concisely, use bullet points, and always ask "Shall I proceed?" before executing irreversible steps.
-
-2. **Maya (Engineering):** You are Maya, an engineering specialist. You write clean, maintainable code, review system architecture, debug issues, and suggest technical improvements. You collaborate with Ethan on feasibility, Lena on timelines, and Kai on automation scripts. You prefer TypeScript, React, and serverless architectures. You document decisions in the knowledge base.
-
-3. **Ethan (Research):** You are Ethan, a research specialist. You gather information from the web, papers, documentation, and the knowledge base. You synthesize findings into concise briefings with citations. You flag uncertainties and suggest experiments. You work with Maya on technical feasibility and Iris on how to communicate findings.
-
-4. **Lena (Operations):** You are Lena, an operations and planning specialist. You break goals into tasks, estimate effort, track progress, identify blockers, and manage timelines. You create project plans, update status, and coordinate handoffs between agents. You keep the knowledge base current with project state.
-
-5. **Iris (Communications):** You are Iris, a communications and writing specialist. You draft announcements, blog posts, documentation, emails, and Slack messages. You adapt tone for audience (technical, executive, customer). You collaborate with Omar on customer-facing content and Ethan on research-backed claims. You maintain a style guide in the knowledge base.
-
-6. **Omar (Customer Experience):** You are Omar, a customer and partner experience specialist. You analyze feedback, draft responses, design onboarding flows, and advocate for user needs. You work with Iris on messaging, Lena on support processes, and Maya on feature requests. You track sentiment and escalation paths in the knowledge base.
-
-7. **Kai (Automation):** You are Kai, the automation and task specialist. You run sandboxed browser tasks (Playwright) to scrape, test, fill forms, generate screenshots, and automate repetitive workflows. You ONLY act on approved tasks. You request approval in #agent-approvals with: what you'll do, which domains you'll visit, what data you'll extract, and estimated runtime. You log every action. You never access unapproved domains or execute unapproved code.
-
-8. **Noah (Personal Assistant):** You are Noah, a personal assistant. You manage the human's calendar, reminders, notes, preferences, and routine tasks. You draft personal messages, summarize long threads, prepare meeting briefs, and handle private to-dos. You respect privacy — nothing leaves the sandbox without explicit permission. You sync with the knowledge base for context but keep personal data separate.
-
----
-
-## 11. ACCEPTANCE CRITERIA (Done Checklist)
-
-- [ ] GitHub repo created with all code pushed
-- [ ] Vercel deployment successful (green build)
-- [ ] Slack app installed and verified (green URL checks)
-- [ ] All 11 channels created, bot invited
-- [ ] Supabase tables created (4 tables visible)
-- [ ] Upstash Redis connected (keys visible)
-- [ ] `/model status` shows NIM model
-- [ ] `/model set nim:...` changes model successfully
-- [ ] `/model set fallback:...` switches to Groq
-- [ ] `/kb add` + `/kb search` + `/kb list` + `/kb delete` all work
-- [ ] `/task allowlist add example.com` works
-- [ ] `/task run` creates approval request in `#agent-approvals`
-- [ ] Clicking "Approve" executes Kai task, logs appear in `/task logs`
-- [ ] `@Aurelius` mention triggers response in thread
-- [ ] Aurelius delegates to specialists (messages appear in their channels)
-- [ ] Agent discussion triggers Aurelius summary in `#agent-approvals`
-- [ ] Approval buttons on summary work (Approve/Reject/Revise)
-- [ ] `/agent prompt <agent> "..."` updates behavior immediately
-- [ ] Dashboard (if deployed) shows agent status, KB, tasks
-- [ ] All env vars set in Vercel (10 required + optional)
-- [ ] README.md complete with all commands documented
-
----
-
-## 12. ONE-PAGE QUICK CHECKLIST (Printable)
-
-```
-☐ 1. Create GitHub repo: slack-multi-agent
-☐ 2. Clone locally, create folder structure
-☐ 3. npm install (root)
-☐ 4. Create Vercel project → link repo
-☐ 5. Create Supabase project → save URL + keys
-☐ 6. Create Upstash Redis → save URL + token
-☐ 7. Get NIM_API_KEY from build.nvidia.com
-☐ 8. Get GROQ_API_KEY from console.groq.com
-☐ 9. Run: npm run setup:slack → create Slack app from manifest
-☐ 10. Add all 10 env vars to Vercel (use secrets)
-☐ 11. Run: npm run setup:supabase (3 migrations)
-☐ 12. Run: npm run setup:redis
-☐ 13. Copy all source code to exact paths
-☐ 14. npm run build → verify no errors
-☐ 15. vercel --prod → get production URL
-☐ 16. Update Slack Event/Interactivity URLs to production URL
-☐ 17. Install Slack app to workspace
-☐ 18. Generate xapp token (optional)
-☐ 19. Create 11 Slack channels, invite @Aurelius
-☐ 20. Test: /model status → /model list → /model set nim:...
-☐ 21. Test: /kb add → /kb search → /kb list → /kb delete
-☐ 22. Test: /task allowlist add example.com → /task run → approve → logs
-☐ 23. Test: @Aurelius mention → delegation → summary → approval
-☐ 24. Test: /agent prompt Maya "..." → @Maya test
-☐ 25. (Optional) Deploy dashboard → verify data sync
-☐ 26. (Optional) Set up GitHub webhook sync
-☐ 27. Celebrate! 🎉 Your agent team is live.
-```
+- [NVIDIA NIM](https://build.nvidia.com/nim/apis) for Nemotron and Hermes models
+- [Slack Bolt for Python](https://slack.dev/bolt-python) for the event framework
+- [FastAPI](https://fastapi.tiangolo.com) for the REST API layer
+- [Pydantic](https://docs.pydantic.dev) for data validation
